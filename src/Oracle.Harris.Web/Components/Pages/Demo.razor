@@ -1,0 +1,62 @@
+@page "/demo"
+@using Oracle.Harris.Storage.Repositories
+@using Oracle.Harris.Web.Services
+@inject DuckDbQueryRepository QueryRepository
+@inject RoofingLeadQueryRepository RoofingRepository
+@inject DemoChatService ChatService
+@rendermode InteractiveServer
+
+<PageTitle>Harris-TX Oracle Demo</PageTitle>
+
+<h1>Harris County, TX — Pipeline Demo</h1>
+<p>Canonical slug: <code>harris-tx</code></p>
+
+<section class="mb-4">
+    <h2>Pipeline runs</h2>
+    @if (_runs.Count == 0)
+    {
+        <p>No runs yet. Execute <code>dotnet run --project src/Oracle.Harris.Cli -- ingest --job pilot-1</code>.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var run in _runs)
+            {
+                <li><strong>@run.RunId</strong> — @run.Status — counts: @run.CountsJson</li>
+            }
+        </ul>
+    }
+</section>
+
+<section class="mb-4">
+    <h2>DuckDB query layer</h2>
+    <pre>@_schema</pre>
+</section>
+
+<section class="mb-4">
+    <h2>Agent chat (README transcript)</h2>
+    <textarea class="form-control mb-2" rows="3" @bind="_question"></textarea>
+    <button class="btn btn-primary" @onclick="AskAgent">Ask</button>
+    @if (!string.IsNullOrWhiteSpace(_answer))
+    {
+        <pre class="mt-3">@_answer</pre>
+    }
+</section>
+
+@code {
+    private List<Oracle.Harris.Domain.Pipeline.PipelineRunRecord> _runs = [];
+    private string _schema = "";
+    private string _question = "Which properties in Harris County within five miles of Houston have roofs older than 15 years?";
+    private string _answer = "";
+
+    protected override void OnInitialized()
+    {
+        _runs = QueryRepository.ListPipelineRuns(10).ToList();
+        _schema = string.Join('\n', QueryRepository.GetPropertyQuerySchema());
+    }
+
+    private async Task AskAgent()
+    {
+        _answer = await ChatService.AnswerAsync(_question);
+    }
+}

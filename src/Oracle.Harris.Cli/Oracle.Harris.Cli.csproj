@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Oracle.Harris.Ingest\Oracle.Harris.Ingest.csproj" />
+    <ProjectReference Include="..\Oracle.Harris.Publish\Oracle.Harris.Publish.csproj" />
+    <ProjectReference Include="..\Oracle.Harris.Storage\Oracle.Harris.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

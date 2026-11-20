@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "skills": {
+    "bbb-harvest": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/bbb-harvest/SKILL.md",
+      "computedHash": "4990f5881ac38e8fa0f9351d18e1b5e18644605542a0957bc2badcb8e213f875"
+    },
+    "bootstrap-oracle-infra": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/bootstrap-oracle-infra/SKILL.md",
+      "computedHash": "b1345b7035fee57c61f6f696a39d792024101ea545f857dc4b65bc56cffc39d3"
+    },
+    "county-appraisal-onboarding": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-appraisal-onboarding/SKILL.md",
+      "computedHash": "f4415a611d64c9db3ece5cfd21ad041ea0a693a3972d65ee097d2330eededd52"
+    },
+    "county-discovery": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-discovery/SKILL.md",
+      "computedHash": "8c04124aad3f1e0a7c8a0013ae830f056db4a0caa344a0cb8a53aca7e90881f9"
+    },
+    "county-ingest-run": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-ingest-run/SKILL.md",
+      "computedHash": "e793b5a161b173f14e1dfe9a7b25cc1646043eb49ebbc80b55dd903d92220644"
+    },
+    "county-open-data-publish": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-open-data-publish/SKILL.md",
+      "computedHash": "e7c9c2ceb26f1166eea619fe196e8559ec244d0ff650f079cde9151922f61bb1"
+    },
+    "county-permit-adapter": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-permit-adapter/SKILL.md",
+      "computedHash": "f8ad939d79361a6b34f1a012ce952d890b1b19f676824ec4662986156fb857b8"
+    },
+    "county-query-table-publish": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-query-table-publish/SKILL.md",
+      "computedHash": "4b24ed6a26887070c6f626c9aded6bdc05cfdbf3163845b48229061be95848a3"
+    },
+    "county-seed-data": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/county-seed-data/SKILL.md",
+      "computedHash": "5bb04f4958dcc347bcaa8abcdc051ea2e561f291d26a7836e7e72685f20e4903"
+    },
+    "deploy-open-data-mcp": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/deploy-open-data-mcp/SKILL.md",
+      "computedHash": "45a14ced670fb99144970f4acd12b16820b8ca862e857a910697f18edc9052b6"
+    },
+    "durable-workflow-builder": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/durable-workflow-builder/SKILL.md",
+      "computedHash": "b9ff9182ae9a348292632b60b2f15a038bc489c72d7669b352daab355066f8d6"
+    },
+    "monitoring-county-ingestion": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/monitoring-county-ingestion/SKILL.md",
+      "computedHash": "aa8b787eec33cb759c3bb67e0645bdaba9450df11176f6ffc5dda0bc4b3fa875"
+    },
+    "onboard-county": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/onboard-county/SKILL.md",
+      "computedHash": "ef1611dada727fa9285eb9d4962b80feef6f9e27957f9dd0587d3a6b11eb06bf"
+    },
+    "overture-places-ingest": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/overture-places-ingest/SKILL.md",
+      "computedHash": "44e4a6a27018a6dc3edf487e239cb1e051dffcea88b03e890c2505e139ac5012"
+    },
+    "query-db-loading-matching": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/query-db-loading-matching/SKILL.md",
+      "computedHash": "08cf04d9874e9af87360bf20d085ea5e255128f95cb462a1d330a331a393c277"
+    },
+    "sunbiz-corporate-ingest": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/sunbiz-corporate-ingest/SKILL.md",
+      "computedHash": "818f9b19c14e076d823b807e8e81683f52e61db9516bd054291317630f53a944"
+    },
+    "transform-v2-builder": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/transform-v2-builder/SKILL.md",
+      "computedHash": "ebdccdfa8d1b647aedeb452650d3c18f6862d51fcaddd2574d97a2bd42853b07"
+    },
+    "validate-county-transform": {
+      "source": "elephant-xyz/skills",
+      "sourceType": "github",
+      "skillPath": "skills/validate-county-transform/SKILL.md",
+      "computedHash": "bca1743dd7b5d0fe05be746ecf4c92c6ad308314e2d01c2b3d1cc213d2e01b0b"
+    }
+  }
+}

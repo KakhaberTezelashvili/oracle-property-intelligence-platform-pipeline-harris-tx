@@ -1,0 +1,26 @@
+# Build
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Local data & secrets
+data/
+artifacts/
+.env
+.env.local
+*.duckdb
+*.duckdb.wal
+
+# Publish / IPFS staging
+demo/publish/
+downloads/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+
+# Elephant skills: commit .agents/skills/ + skills-lock.json only (symlink trees from other installers)
+agent/
+.claude/

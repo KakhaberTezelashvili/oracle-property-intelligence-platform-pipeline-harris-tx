@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Oracle.Harris.Domain\Oracle.Harris.Domain.csproj" />
+    <ProjectReference Include="..\Oracle.Harris.Ingest\Oracle.Harris.Ingest.csproj" />
+    <ProjectReference Include="..\Oracle.Harris.Publish\Oracle.Harris.Publish.csproj" />
+    <ProjectReference Include="..\Oracle.Harris.Storage\Oracle.Harris.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.3.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.3.0" />
+    <PackageReference Include="OpenAI" Version="2.8.0" />
+  </ItemGroup>
+
+</Project>

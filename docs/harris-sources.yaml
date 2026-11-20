@@ -1,0 +1,96 @@
+# Harris County, TX (harris-tx) — source catalog for Oracle.Harris ingestion
+# FIPS 48201. Status values: needs-review | discovered | certified | blocked
+
+county: harris-tx
+state: TX
+county_fips: "48201"
+jurisdiction_db_key: harris_tx_appraiser
+
+appraisal:
+  name: Harris County Appraisal District (HCAD)
+  url: https://hcad.org
+  bulk:
+    - name: Real Property Account Data
+      url: https://www.hcad.org/pdata/pdata-property-downloads.html
+      mode: bulk-download
+      status: needs-review
+    - name: Building Data / Structural Elements
+      url: https://www.hcad.org/pdata/pdata-property-downloads.html
+      mode: bulk-download
+      status: needs-review
+    - name: Ownership / Situs
+      url: https://www.hcad.org/pdata/pdata-property-downloads.html
+      mode: bulk-download
+      status: needs-review
+  parcel_identifier:
+    name: account_number
+    notes: HCAD account format; preserve exact string as request_identifier (folio)
+  online_search:
+    url: https://public.hcad.org/records/QuickSearch.asp
+    mode: browser-or-http
+    status: needs-review
+
+gis:
+  name: HCAD GIS / Maps
+  url: https://www.hcad.org/resources/gis-data/gis-data.htm
+  bulk: true
+  columns_expected: [latitude, longitude, parcel_geometry]
+  status: needs-review
+
+permits:
+  notes: >
+    Harris County is fragmented — City of Houston (majority of permits), Harris County
+    Engineering for unincorporated areas, plus dozens of municipalities. Catalog rows are
+    seeded for certification; expand via county-discovery playbook.
+  - jurisdiction: houston
+    vendor: accela
+    url: https://permitsningeneral.cityofhouston.gov/CitizenAccess/
+    search: by-address-parcel
+    roofing_priority: true
+    probe: needs-playwright
+    throughput: null
+    status: needs-review
+  - jurisdiction: harris_county_unincorporated
+    vendor: custom
+    url: https://www.hcfcd.org/Permits/ or https://publicworks.harriscountytx.gov/
+    search: by-parcel-address
+    roofing_priority: true
+    probe: needs-review
+    status: needs-review
+  - jurisdiction: pasadena
+    vendor: unknown
+    url: https://www.pasadena.tx.us/
+    search: unknown
+    status: needs-review
+  - jurisdiction: baytown
+    vendor: unknown
+    url: https://www.baytown.org/
+    search: unknown
+    status: needs-review
+  - jurisdiction: deer_park
+    vendor: unknown
+    url: https://www.deerparktx.gov/
+    search: unknown
+    status: needs-review
+
+enrichment:
+  bbb:
+    name: Better Business Bureau — Houston metro contractors
+    category_urls:
+      - https://www.bbb.org/us/tx/houston/category/roofing-contractors
+      - https://www.bbb.org/us/tx/houston/category/general-contractor
+    mode: scrape-puppeteer
+  overture_places:
+    name: Overture Maps Places
+    county_fips: "48201"
+    boundary_source: tiger/tl_2024_us_county
+    release: pinned-per-run
+    licence_gate: strict
+    filebase_bucket: elephant-oracle-open-data-harris-tx-places
+    ipns_label: oracle-open-data-harris-tx-places
+
+publish:
+  open_data_bucket: elephant-oracle-open-data-harris-tx
+  query_table_bucket: elephant-oracle-query-table-harris-tx
+  ipns_open_data: oracle-open-data-harris-tx
+  ipns_query_table: oracle-query-table-harris-tx
