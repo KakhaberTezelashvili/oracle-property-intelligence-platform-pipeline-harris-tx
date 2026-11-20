@@ -4,7 +4,10 @@ using Oracle.Harris.Storage.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var duckDbPath = builder.Configuration["DUCKDB_PATH"] ?? "data/harris-tx/harris-tx.duckdb";
+var duckDbPath = HarrisPaths.ResolveFromRepositoryRoot(
+    builder.Configuration["DUCKDB_PATH"]
+    ?? Environment.GetEnvironmentVariable("DUCKDB_PATH")
+    ?? "data/harris-tx/harris-tx.duckdb");
 builder.Services.AddOracleHarrisStorage(o => o.DatabasePath = duckDbPath);
 
 builder.Services.AddSingleton<HarrisMcpTools>();

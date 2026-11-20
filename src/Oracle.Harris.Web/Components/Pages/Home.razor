@@ -1,7 +1,204 @@
 ﻿@page "/"
+@page "/demo"
+@using System.Text.Json
+@using Oracle.Harris.Domain
+@using Oracle.Harris.Domain.Pipeline
+@using Oracle.Harris.Storage.Repositories
+@using Oracle.Harris.Web.Services
+@inject DuckDbQueryRepository QueryRepository
+@inject RoofingLeadQueryRepository RoofingRepository
+@inject DemoChatService ChatService
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Harris County Oracle Pipeline</PageTitle>
 
-<h1>Harris County Oracle Pipeline</h1>
+<div class="oracle-hero mb-4">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <h1 class="oracle-title mb-0">Harris County Property Intelligence</h1>
+        <span class="badge text-bg-dark">harris-tx</span>
+        <span class="badge text-bg-secondary">DuckDB</span>
+    </div>
+    <p class="oracle-lead text-muted mb-0">
+        Oracle ingestion demo — HCAD PDATA loaded locally; IPFS/MCP-ready query layer for roofing lead discovery.
+    </p>
+</div>
 
-<p>Canonical county slug: <code>harris-tx</code>. Open the <a href="demo">demo transcript</a> page to walk through README acceptance steps.</p>
+@if (_summary is not null && _summary.Parcels > 0)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="oracle-stat-card">
+                <div class="oracle-stat-label">Parcels</div>
+                <div class="oracle-stat-value">@_summary.Parcels.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="oracle-stat-card">
+                <div class="oracle-stat-label">Properties</div>
+                <div class="oracle-stat-value">@_summary.Properties.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="oracle-stat-card">
+                <div class="oracle-stat-label">Roofing permits (HCAD)</div>
+                <div class="oracle-stat-value">@_summary.RoofingPermits.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="oracle-stat-card">
+                <div class="oracle-stat-label">Roof age ≥ @CountyConstants.DefaultRoofAgeThresholdYears yrs</div>
+                <div class="oracle-stat-value">@_summary.PropertiesRoofAge15Plus.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_limitations))
+{
+    <div class="alert alert-warning oracle-limitations mb-4" role="status">
+        <strong>Documented source limitations</strong>
+        <pre class="mb-0 mt-2 oracle-pre-compact">@_limitations</pre>
+    </div>
+}
+
+<section class="oracle-panel mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="oracle-section-title mb-0">Pipeline runs</h2>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Refresh">Refresh</button>
+    </div>
+    @if (_runs.Count == 0)
+    {
+        <p class="text-muted mb-0">
+            No runs recorded. From repo root:
+            <code class="oracle-code">dotnet run --project src/Oracle.Harris.Cli -- ingest --job hcad-pilot</code>
+        </p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle oracle-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Run ID</th>
+                        <th>Status</th>
+                        <th>Started</th>
+                        <th>Parcels</th>
+                        <th>Roof permits</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var run in _runs)
+                    {
+                        var counts = ParseCounts(run.CountsJson);
+                        <tr>
+                            <td><code class="oracle-code">@run.RunId</code></td>
+                            <td>
+                                <span class="badge @StatusBadgeClass(run.Status)">@run.Status</span>
+                            </td>
+                            <td>@run.StartedAt.LocalDateTime.ToString("g")</td>
+                            <td>@(counts.Parcels?.ToString("N0") ?? "—")</td>
+                            <td>@(counts.RoofingPermits?.ToString("N0") ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <section class="oracle-panel h-100">
+            <h2 class="oracle-section-title">DuckDB — v_property_leads</h2>
+            <p class="text-muted small">MCP tools <code>getPropertyQuerySchema</code> / <code>queryProperties</code> use this view.</p>
+            <pre class="oracle-pre-schema">@_schema</pre>
+        </section>
+    </div>
+    <div class="col-lg-7">
+        <section class="oracle-panel h-100">
+            <h2 class="oracle-section-title">Agent (README transcript)</h2>
+            <p class="text-muted small">Answers use DuckDB evidence. Radius filters require GIS coordinates (not in current PDATA bundle).</p>
+            <textarea class="form-control oracle-textarea mb-2" rows="3" @bind="_question" disabled="@_asking"></textarea>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                <button type="button" class="btn btn-primary" disabled="@_asking" @onclick="AskAgent">
+                    @(_asking ? "Querying…" : "Ask")
+                </button>
+                <div class="form-check ms-2">
+                    <input class="form-check-input" type="checkbox" id="evidenceOnly" @bind="_evidenceOnly" />
+                    <label class="form-check-label small" for="evidenceOnly">Source-backed only (skip LLM paraphrase)</label>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_answer))
+            {
+                <pre class="oracle-answer">@_answer</pre>
+            }
+        </section>
+    </div>
+</div>
+
+@code {
+    private List<PipelineRunRecord> _runs = [];
+    private DatasetSummary? _summary;
+    private string _schema = "";
+    private string _limitations = "";
+    private string _question = "Which properties in Harris County have roofs older than 15 years?";
+    private string _answer = "";
+    private bool _asking;
+    private bool _evidenceOnly = true;
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        _runs = QueryRepository.ListPipelineRuns(12).ToList();
+        _schema = string.Join('\n', QueryRepository.GetPropertyQuerySchema());
+        _limitations = _runs.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.SourceLimitations))?.SourceLimitations ?? "";
+        try
+        {
+            _summary = QueryRepository.GetDatasetSummary();
+        }
+        catch
+        {
+            _summary = null;
+        }
+    }
+
+    private async Task AskAgent()
+    {
+        _asking = true;
+        _answer = "";
+        try
+        {
+            _answer = await ChatService.AnswerAsync(_question, _evidenceOnly);
+        }
+        finally
+        {
+            _asking = false;
+        }
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "completed" => "text-bg-success",
+        "running" => "text-bg-info",
+        _ => "text-bg-secondary",
+    };
+
+    private static RunCountParse ParseCounts(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            return new RunCountParse(
+                root.TryGetProperty("parcels", out var p) ? p.GetInt64() : null,
+                root.TryGetProperty("roofing_permits", out var r) ? r.GetInt64() : null);
+        }
+        catch
+        {
+            return new RunCountParse(null, null);
+        }
+    }
+
+    private sealed record RunCountParse(long? Parcels, long? RoofingPermits);
+}

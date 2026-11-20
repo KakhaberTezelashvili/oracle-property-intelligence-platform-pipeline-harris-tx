@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Oracle.Harris.Ingest.Hcad;
 using Oracle.Harris.Ingest.Logging;
 using Oracle.Harris.Ingest.Options;
 using Oracle.Harris.Ingest.Pipeline;
@@ -23,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<WatermarkStore>();
         services.AddSingleton<SourceLimitationLogger>();
         services.AddSingleton<EntityReconciler>();
+        services.AddSingleton<HcadPdataIngestor>();
         services.AddSingleton<IngestionOrchestrator>();
         return services;
     }

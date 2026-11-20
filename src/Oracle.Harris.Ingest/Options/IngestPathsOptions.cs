@@ -7,4 +7,6 @@ public sealed class IngestPathsOptions
     public string DataRoot { get; set; } = "data";
 
     public string ArtifactsRoot { get; set; } = "artifacts";
+
+    public string TempDataRoot { get; set; } = "tempdata";
 }

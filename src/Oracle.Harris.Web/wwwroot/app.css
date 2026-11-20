@@ -1,5 +1,131 @@
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: #f4f6f9;
+}
+
+.oracle-content {
+    max-width: 1320px;
+}
+
+.oracle-hero {
+    padding: 0.25rem 0 0.5rem;
+}
+
+.oracle-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.oracle-lead {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+}
+
+.oracle-section-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.oracle-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.oracle-stat-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    height: 100%;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.oracle-stat-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.oracle-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    margin-top: 0.35rem;
+}
+
+.oracle-table thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    border-bottom-width: 1px;
+}
+
+.oracle-code {
+    font-size: 0.85em;
+    color: #0f4c81;
+}
+
+.oracle-pre-schema,
+.oracle-pre-compact {
+    font-size: 0.8rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    max-height: 320px;
+    overflow: auto;
+    margin-bottom: 0;
+}
+
+.oracle-pre-compact {
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+}
+
+.oracle-textarea {
+    font-size: 0.95rem;
+    border-radius: 8px;
+}
+
+.oracle-answer {
+    font-size: 0.85rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 1rem;
+    white-space: pre-wrap;
+    max-height: 420px;
+    overflow: auto;
+    margin-bottom: 0;
+}
+
+.oracle-limitations pre {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+.oracle-topbar {
+    justify-content: space-between !important;
+}
+
+.oracle-topbar-title {
+    font-weight: 600;
+    color: #334155;
+}
+
+.oracle-nav-footnote {
+    margin-top: 1rem;
+    padding-top: 1rem !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 a, .btn-link {

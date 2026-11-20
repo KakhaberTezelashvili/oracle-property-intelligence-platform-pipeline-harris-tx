@@ -2,85 +2,142 @@ using System.Text.Json;
 using DuckDB.NET.Data;
 using Microsoft.Extensions.Logging;
 using Oracle.Harris.Domain;
-using Oracle.Harris.Domain.Entities;
 using Oracle.Harris.Domain.Pipeline;
-using Oracle.Harris.Domain.Provenance;
-using Oracle.Harris.Ingest.ChangeDetection;
+using Oracle.Harris.Ingest.Hcad;
 using Oracle.Harris.Ingest.Logging;
-using Oracle.Harris.Ingest.Options;
-using Oracle.Harris.Ingest.Watermarks;
 using Oracle.Harris.Storage;
-using Oracle.Harris.Storage.Bulk;
 
 namespace Oracle.Harris.Ingest.Pipeline;
 
 public sealed class IngestionOrchestrator(
     DuckDbConnectionFactory connectionFactory,
-    DuckDbBulkLoader bulkLoader,
-    WatermarkStore watermarkStore,
+    HcadPdataIngestor hcadIngestor,
     SourceLimitationLogger limitationLogger,
     ILogger<IngestionOrchestrator> logger)
 {
-    public async Task<PipelineRunRecord> RunIncrementalAsync(string jobId, CancellationToken cancellationToken = default)
+    public const int DefaultPilotLimit = 25_000;
+
+    public Task<PipelineRunRecord> RunIncrementalAsync(
+        string jobId,
+        int? rowLimit = DefaultPilotLimit,
+        bool fullCounty = false,
+        bool forceReload = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (fullCounty)
+        {
+            rowLimit = null;
+        }
+
+        return RunInternalAsync(jobId, rowLimit, forceReload, cancellationToken);
+    }
+
+    private async Task<PipelineRunRecord> RunInternalAsync(
+        string jobId,
+        int? rowLimit,
+        bool forceReload,
+        CancellationToken cancellationToken)
     {
         var runId = $"{jobId}-{DateTime.UtcNow:yyyyMMddHHmmss}";
         var started = DateTimeOffset.UtcNow;
+        limitationLogger.Add("coordinates", "HCAD PDATA has no lat/lon; radius search requires GIS (not in current tempdata bundle).");
+        limitationLogger.Add("permits", "Loaded HCAD permit references; municipal portals (Houston Accela) needed for contractor + long-open roofing permits.");
+        limitationLogger.Add("bbb", "Not loaded in this run — enrichment phase.");
+        limitationLogger.Add("overture", "Not loaded in this run — enrichment phase.");
+
         var run = new PipelineRunRecord
         {
             RunId = runId,
             CountySlug = CountyConstants.Slug,
             StartedAt = started,
             Status = "running",
-            SourcesJson = JsonSerializer.Serialize(new[] { "hcad", "permits", "bbb", "overture" }),
+            SourcesJson = JsonSerializer.Serialize(new[]
+            {
+                "hcad_pdata:real_acct",
+                "hcad_pdata:building_res",
+                "hcad_pdata:ownership_history",
+                "hcad_pdata:permits_roofing",
+            }),
         };
 
         await UpsertPipelineRunAsync(run, cancellationToken);
 
-        // Scaffold: idempotent sample merge when HCAD artifacts are absent
-        var samplePath = $"appraisal/{CountyConstants.Slug}/{jobId}/sample.json";
-        var sampleJson = """{"request_identifier":"DEMO-0001","year_built":1998}""";
-        var hash = ContentHashChangeDetector.ComputeHash(sampleJson);
-        if (await watermarkStore.IsChangedAsync(samplePath, hash, cancellationToken))
+        RowCounts? previous = null;
+        try
         {
-            bulkLoader.UpsertParcel(new ParcelRecord
-            {
-                JurisdictionKey = CountyConstants.AppraiserSourceSystem,
-                RequestIdentifier = "DEMO-0001",
-                ParcelIdentifier = "DEMO0001",
-                Provenance = new SourceProvenance
-                {
-                    SourceSystem = CountyConstants.AppraiserSourceSystem,
-                    SourceRecordKey = "DEMO-0001",
-                    SourceCollectedAt = DateTimeOffset.UtcNow,
-                    SourcePayloadJson = sampleJson,
-                    ContentHash = hash,
-                },
-            });
-            bulkLoader.UpsertProperty(new PropertyRecord
-            {
-                RequestIdentifier = "DEMO-0001",
-                YearBuilt = 1998,
-                PropertyUsageType = "residential",
-            });
-            await watermarkStore.MarkMergedAsync(samplePath, hash, cancellationToken);
+            previous = await ReadPreviousCountsAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "No prior counts for delta calculation");
         }
 
-        limitationLogger.Add("hcad", "Bulk downloads wired — run discovery to replace DEMO-0001 scaffold row.");
-        limitationLogger.Add("permits", "Municipal catalog in docs/harris-sources.yaml requires certification.");
+        var hcad = await hcadIngestor.LoadAsync(jobId, rowLimit, forceReload, cancellationToken);
 
-        var counts = new Dictionary<string, long> { ["parcels"] = 1, ["properties"] = 1 };
+        var counts = new Dictionary<string, long>
+        {
+            ["parcels"] = hcad.Counts.Parcels,
+            ["properties"] = hcad.Counts.Properties,
+            ["ownerships"] = hcad.Counts.Ownerships,
+            ["roofing_permits"] = hcad.Counts.Permits,
+        };
+
+        var deltas = new Dictionary<string, object>
+        {
+            ["reloaded"] = hcad.Reloaded,
+            ["content_hash"] = hcad.ContentHash,
+            ["row_limit"] = hcad.RowLimit ?? -1,
+        };
+
+        if (hcad.SkipReason is not null)
+        {
+            deltas["skipped"] = hcad.SkipReason;
+        }
+
+        if (previous is not null)
+        {
+            deltas["parcels_delta"] = hcad.Counts.Parcels - previous.Parcels;
+            deltas["properties_delta"] = hcad.Counts.Properties - previous.Properties;
+            deltas["roofing_permits_delta"] = hcad.Counts.Permits - previous.Permits;
+        }
+
         var completed = run with
         {
             CompletedAt = DateTimeOffset.UtcNow,
             Status = "completed",
             CountsJson = JsonSerializer.Serialize(counts),
-            DeltasJson = JsonSerializer.Serialize(new { parcels = 1 }),
+            DeltasJson = JsonSerializer.Serialize(deltas),
             SourceLimitations = limitationLogger.Summarize(),
         };
 
         await UpsertPipelineRunAsync(completed, cancellationToken);
         logger.LogInformation("Ingestion run {RunId} completed", runId);
         return completed;
+    }
+
+    private async Task<RowCounts?> ReadPreviousCountsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = (DuckDBConnection)connectionFactory.CreateOpenConnection();
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText =
+            """
+            SELECT counts_json FROM pipeline_runs
+            WHERE county_slug = $county AND status = 'completed'
+            ORDER BY started_at DESC LIMIT 1
+            """;
+        cmd.Parameters.Add(new DuckDBParameter("county", CountyConstants.Slug));
+        var json = await cmd.ExecuteScalarAsync(cancellationToken) as string;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        var doc = JsonDocument.Parse(json);
+        return new RowCounts(
+            doc.RootElement.GetProperty("parcels").GetInt64(),
+            doc.RootElement.GetProperty("properties").GetInt64(),
+            doc.RootElement.TryGetProperty("ownerships", out var o) ? o.GetInt64() : 0,
+            doc.RootElement.TryGetProperty("roofing_permits", out var p) ? p.GetInt64() : 0);
     }
 
     private async Task UpsertPipelineRunAsync(PipelineRunRecord run, CancellationToken cancellationToken)

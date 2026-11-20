@@ -9,9 +9,16 @@ using Oracle.Harris.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var duckDbPath = builder.Configuration["DUCKDB_PATH"] ?? "data/harris-tx/harris-tx.duckdb";
+var duckDbPath = HarrisPaths.ResolveFromRepositoryRoot(
+    builder.Configuration["DUCKDB_PATH"]
+    ?? Environment.GetEnvironmentVariable("DUCKDB_PATH")
+    ?? "data/harris-tx/harris-tx.duckdb");
 builder.Services.AddOracleHarrisStorage(o => o.DatabasePath = duckDbPath);
-builder.Services.AddOracleHarrisIngest();
+builder.Services.AddOracleHarrisIngest(o =>
+{
+    o.TempDataRoot = HarrisPaths.ResolveFromRepositoryRoot(
+        Environment.GetEnvironmentVariable("TEMPDATA_ROOT") ?? "tempdata");
+});
 builder.Services.AddOracleHarrisPublish();
 builder.Services.AddSingleton<DemoChatService>();
 
@@ -52,12 +59,12 @@ app.MapRazorComponents<App>()
 
 app.MapPost("/api/chat", async (ChatRequest request, DemoChatService chat, CancellationToken ct) =>
 {
-    var answer = await chat.AnswerAsync(request.Message, ct);
+    var answer = await chat.AnswerAsync(request.Message, request.EvidenceOnly, ct);
     return Results.Ok(new ChatResponse(answer));
 });
 
 app.Run();
 
-file sealed record ChatRequest(string Message);
+file sealed record ChatRequest(string Message, bool EvidenceOnly = true);
 
 file sealed record ChatResponse(string Answer);

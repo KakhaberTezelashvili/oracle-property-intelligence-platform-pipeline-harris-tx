@@ -140,4 +140,22 @@ public sealed class DuckDbQueryRepository(DuckDbConnectionFactory connectionFact
 
     public string SerializeRows(IReadOnlyList<Dictionary<string, object?>> rows) =>
         JsonSerializer.Serialize(rows);
+
+    public DatasetSummary GetDatasetSummary(int roofAgeThresholdYears = 15)
+    {
+        using var connection = (DuckDBConnection)connectionFactory.CreateOpenConnection();
+        return new DatasetSummary(
+            ScalarLong(connection, $"SELECT COUNT(*) FROM parcels WHERE jurisdiction_key = '{Oracle.Harris.Domain.CountyConstants.AppraiserSourceSystem}'"),
+            ScalarLong(connection, $"SELECT COUNT(*) FROM properties WHERE source_system = '{Oracle.Harris.Domain.CountyConstants.AppraiserSourceSystem}'"),
+            ScalarLong(connection, $"SELECT COUNT(*) FROM ownerships WHERE source_system = '{Oracle.Harris.Domain.CountyConstants.AppraiserSourceSystem}'"),
+            ScalarLong(connection, "SELECT COUNT(*) FROM permits WHERE source_system = 'harris_tx_hcad_permits'"),
+            ScalarLong(connection, $"SELECT COUNT(*) FROM v_property_leads WHERE roof_age_years >= {roofAgeThresholdYears}"));
+    }
+
+    private static long ScalarLong(DuckDBConnection connection, string sql)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        return Convert.ToInt64(cmd.ExecuteScalar() ?? 0);
+    }
 }

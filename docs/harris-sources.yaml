@@ -13,7 +13,8 @@ appraisal:
     - name: Real Property Account Data
       url: https://www.hcad.org/pdata/pdata-property-downloads.html
       mode: bulk-download
-      status: needs-review
+      local_path: tempdata/real_acct.txt
+      status: certified
     - name: Building Data / Structural Elements
       url: https://www.hcad.org/pdata/pdata-property-downloads.html
       mode: bulk-download

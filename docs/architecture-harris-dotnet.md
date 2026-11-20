@@ -81,7 +81,8 @@ Copy [.env.example](../.env.example) to `.env`. Local paths default under `data/
 ```bash
 dotnet build Oracle.Harris.sln
 dotnet run --project src/Oracle.Harris.Cli -- migrate
-dotnet run --project src/Oracle.Harris.Cli -- ingest --job pilot-1
+dotnet run --project src/Oracle.Harris.Cli -- ingest --job hcad-pilot
+dotnet run --project src/Oracle.Harris.Cli -- ingest --job hcad-full --full
 dotnet run --project src/Oracle.Harris.Cli -- publish --run-id <run_id>
 dotnet run --project src/Oracle.Harris.Cli -- verify-gateways --run-id <run_id>
 ```
