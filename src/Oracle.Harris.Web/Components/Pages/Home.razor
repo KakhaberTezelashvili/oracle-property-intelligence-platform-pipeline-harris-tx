@@ -53,14 +53,6 @@
     </div>
 }
 
-@if (!string.IsNullOrWhiteSpace(_limitations))
-{
-    <div class="alert alert-warning oracle-limitations mb-4" role="status">
-        <strong>Documented source limitations</strong>
-        <pre class="mb-0 mt-2 oracle-pre-compact">@_limitations</pre>
-    </div>
-}
-
 <section class="oracle-panel mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="oracle-section-title mb-0">Pipeline runs</h2>
@@ -120,8 +112,16 @@
             <p class="text-muted small">Answers use DuckDB evidence. Radius filters require GIS coordinates (not in current PDATA bundle).</p>
             <textarea class="form-control oracle-textarea mb-2" rows="3" @bind="_question" disabled="@_asking"></textarea>
             <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                <button type="button" class="btn btn-primary" disabled="@_asking" @onclick="AskAgent">
-                    @(_asking ? "Querying…" : "Ask")
+                <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2" disabled="@_asking" @onclick="AskAgent">
+                    @if (_asking)
+                    {
+                        <span class="spinner-border spinner-border-sm oracle-btn-spinner" role="status" aria-hidden="true"></span>
+                        <span>Querying…</span>
+                    }
+                    else
+                    {
+                        <span>Ask</span>
+                    }
                 </button>
                 <div class="form-check ms-2">
                     <input class="form-check-input" type="checkbox" id="evidenceOnly" @bind="_evidenceOnly" />
@@ -140,7 +140,6 @@
     private List<PipelineRunRecord> _runs = [];
     private DatasetSummary? _summary;
     private string _schema = "";
-    private string _limitations = "";
     private string _question = "Which properties in Harris County have roofs older than 15 years?";
     private string _answer = "";
     private bool _asking;
@@ -152,7 +151,6 @@
     {
         _runs = QueryRepository.ListPipelineRuns(12).ToList();
         _schema = string.Join('\n', QueryRepository.GetPropertyQuerySchema());
-        _limitations = _runs.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.SourceLimitations))?.SourceLimitations ?? "";
         try
         {
             _summary = QueryRepository.GetDatasetSummary();
@@ -167,6 +165,7 @@
     {
         _asking = true;
         _answer = "";
+        await InvokeAsync(StateHasChanged);
         try
         {
             _answer = await ChatService.AnswerAsync(_question, _evidenceOnly);

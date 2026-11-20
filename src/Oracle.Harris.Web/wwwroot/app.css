@@ -107,19 +107,10 @@ html, body {
     margin-bottom: 0;
 }
 
-.oracle-limitations pre {
-    background: transparent;
-    border: none;
-    padding: 0;
-}
-
-.oracle-topbar {
-    justify-content: space-between !important;
-}
-
-.oracle-topbar-title {
-    font-weight: 600;
-    color: #334155;
+.oracle-btn-spinner {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
 }
 
 .oracle-nav-footnote {
