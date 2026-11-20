@@ -32,14 +32,32 @@ public sealed class PublishOrchestrator(
         await exporter.ExportOpenDataJsonAsync(Path.Combine(publishDir, "open-data"), cancellationToken);
 
         var parquetBytes = await File.ReadAllBytesAsync(parquetPath, cancellationToken);
-        var cid = CidV1Encoder.EncodeFile(parquetBytes);
-        var sha = CidV1Encoder.Sha256Hex(parquetBytes);
+        var parquetSha = CidV1Encoder.Sha256Hex(parquetBytes);
+        var rawParquetCid = CidV1Encoder.EncodeFile(parquetBytes);
 
         var carBytes = CarArchiveWriter.WriteSingleBlockArchive(
             parquetBytes,
-            CarArchiveWriter.ExtractCidPayloadWithoutMultibase(cid));
+            CarArchiveWriter.ExtractCidPayloadWithoutMultibase(rawParquetCid));
         var carPath = Path.Combine(publishDir, "query-table.car");
         await File.WriteAllBytesAsync(carPath, carBytes, cancellationToken);
+        var carSha = CidV1Encoder.Sha256Hex(carBytes);
+
+        FilebaseUploadResult? parquetUpload = null;
+        FilebaseUploadResult? carUpload = null;
+
+        await using (var stream = File.OpenRead(parquetPath))
+        {
+            parquetUpload = await filebasePublisher.UploadFileAsync("query-tables/harris-tx/query-table.parquet", stream, cancellationToken);
+        }
+
+        await using (var carStream = File.OpenRead(carPath))
+        {
+            carUpload = await filebasePublisher.UploadFileAsync("query-tables/harris-tx/query-table.car", carStream, cancellationToken);
+        }
+
+        var rawCarCid = CidV1Encoder.EncodeFile(carBytes);
+        var parquetCid = ChooseNetworkCid(parquetUpload, rawParquetCid);
+        var carCid = ChooseNetworkCid(carUpload, rawCarCid);
 
         var manifest = new PipelineRunManifest
         {
@@ -50,19 +68,19 @@ public sealed class PublishOrchestrator(
             [
                 new ArtifactManifestEntry
                 {
-                    Cid = cid,
+                    Cid = parquetCid,
                     Name = "query-tables/harris-tx/query-table.parquet",
                     SizeBytes = parquetBytes.LongLength,
                     Codec = "file",
-                    Sha256 = sha,
+                    Sha256 = parquetSha,
                 },
                 new ArtifactManifestEntry
                 {
-                    Cid = CidV1Encoder.EncodeFile(carBytes),
+                    Cid = carCid,
                     Name = "query-tables/harris-tx/query-table.car",
                     SizeBytes = carBytes.LongLength,
                     Codec = "file",
-                    Sha256 = CidV1Encoder.Sha256Hex(carBytes),
+                    Sha256 = carSha,
                 },
             ],
         };
@@ -70,15 +88,17 @@ public sealed class PublishOrchestrator(
         var manifestPath = Path.Combine(publishDir, "artifact-manifest.json");
         await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
 
-        await using (var stream = File.OpenRead(parquetPath))
-        {
-            await filebasePublisher.UploadFileAsync("query-tables/harris-tx/query-table.parquet", stream, cancellationToken);
-        }
-
         await RecordPublishedArtifactsAsync(runId, manifest, cancellationToken);
-        logger.LogInformation("Published run {RunId} primary CID {Cid}", runId, cid);
+        logger.LogInformation(
+            "Published run {RunId} parquet network CID {Cid} (raw codec fallback {Raw})",
+            runId,
+            parquetCid,
+            rawParquetCid);
         return manifest;
     }
+
+    private static string ChooseNetworkCid(FilebaseUploadResult? upload, string rawCodecCid) =>
+        !string.IsNullOrWhiteSpace(upload?.IpfsCid) ? upload!.IpfsCid! : rawCodecCid;
 
     public Task<IReadOnlyList<GatewayVerificationResult>> VerifyPublishedAsync(
         string cid,

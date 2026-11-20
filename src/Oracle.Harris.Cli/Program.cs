@@ -1,11 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Oracle.Harris.Domain;
+using Oracle.Harris.Domain.Ipfs;
 using Oracle.Harris.Ingest;
 using Oracle.Harris.Ingest.Options;
 using Oracle.Harris.Ingest.Pipeline;
 using Oracle.Harris.Publish;
-using Oracle.Harris.Publish.Options;
 using Oracle.Harris.Storage;
+using Oracle.Harris.Storage.Repositories;
 using Oracle.Harris.Storage.Schema;
 
 if (args.Length == 0)
@@ -27,15 +30,7 @@ services.AddOracleHarrisIngest(o =>
     o.ArtifactsRoot = HarrisPaths.ResolveFromRepositoryRoot(Environment.GetEnvironmentVariable("ARTIFACTS_DIR") ?? "artifacts");
     o.TempDataRoot = tempDataRoot;
 });
-services.AddOracleHarrisPublish(o =>
-{
-    o.Endpoint = Environment.GetEnvironmentVariable("S3_ENDPOINT") ?? o.Endpoint;
-    o.Bucket = Environment.GetEnvironmentVariable("FILEBASE_QUERY_TABLE_BUCKET_HARRIS_TX") ?? o.Bucket;
-    o.AccessKey = Environment.GetEnvironmentVariable("S3_ACCESS_KEY_ID") ?? "";
-    o.SecretKey = Environment.GetEnvironmentVariable("S3_SECRET_ACCESS_KEY") ?? "";
-    o.Gateway1 = Environment.GetEnvironmentVariable("IPFS_GATEWAY_1") ?? o.Gateway1;
-    o.Gateway2 = Environment.GetEnvironmentVariable("IPFS_GATEWAY_2") ?? o.Gateway2;
-});
+services.AddOracleHarrisPublish();
 
 await using var provider = services.BuildServiceProvider();
 
@@ -74,20 +69,63 @@ switch (command)
         Console.WriteLine($"Published {manifest.Artifacts.Count} artifacts for {runId}");
         return 0;
     }
+    case "cleanup-runs":
+    {
+        var updated = provider.GetRequiredService<DuckDbQueryRepository>().MarkStaleRunningRuns();
+        Console.WriteLine($"Marked {updated} stale pipeline run(s) as interrupted.");
+        return 0;
+    }
     case "verify-gateways":
     {
+        var runId = GetArg(args, "--run-id");
+        var orchestrator = provider.GetRequiredService<PublishOrchestrator>();
+        if (runId is not null)
+        {
+            var manifest = provider.GetRequiredService<DuckDbQueryRepository>().GetRunManifest(runId);
+            if (manifest is null)
+            {
+                var artifactsRoot = HarrisPaths.ResolveFromRepositoryRoot(
+                    Environment.GetEnvironmentVariable("ARTIFACTS_DIR") ?? "artifacts");
+                var manifestPath = Path.Combine(artifactsRoot, CountyConstants.Slug, "publish", runId, "artifact-manifest.json");
+                if (File.Exists(manifestPath))
+                {
+                    manifest = JsonSerializer.Deserialize<PipelineRunManifest>(await File.ReadAllTextAsync(manifestPath));
+                }
+            }
+
+            if (manifest is null || manifest.Artifacts.Count == 0)
+            {
+                Console.Error.WriteLine($"No published artifacts for run {runId}. Run: publish --run-id {runId}");
+                return 1;
+            }
+
+            var allOk = true;
+            foreach (var entry in manifest.Artifacts)
+            {
+                Console.WriteLine($"Verifying {entry.Name} cid={entry.Cid} size={entry.SizeBytes}");
+                var results = await orchestrator.VerifyPublishedAsync(entry.Cid, entry.SizeBytes, entry.Sha256);
+                Console.WriteLine(JsonSerializer.Serialize(results));
+                if (!results.All(r => r.Success))
+                {
+                    allOk = false;
+                }
+            }
+
+            return allOk ? 0 : 2;
+        }
+
         var cid = GetArg(args, "--cid");
         var size = long.Parse(GetArg(args, "--size") ?? "0");
         var sha = GetArg(args, "--sha256");
         if (cid is null || sha is null)
         {
-            Console.Error.WriteLine("--cid and --sha256 are required");
+            Console.Error.WriteLine("Use --run-id <runId> after publish, or --cid <cid> --size <bytes> --sha256 <hex>");
             return 1;
         }
 
-        var results = await provider.GetRequiredService<PublishOrchestrator>().VerifyPublishedAsync(cid, size, sha);
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(results));
-        return results.All(r => r.Success) ? 0 : 2;
+        var singleResults = await orchestrator.VerifyPublishedAsync(cid, size, sha);
+        Console.WriteLine(JsonSerializer.Serialize(singleResults));
+        return singleResults.All(r => r.Success) ? 0 : 2;
     }
     default:
         PrintHelp();
@@ -124,8 +162,10 @@ static void PrintHelp() =>
         """
         Oracle.Harris.Cli commands:
           migrate
+          cleanup-runs
           ingest --job <jobId> [--limit <n>] [--full] [--force]
           publish --run-id <runId>
+          verify-gateways --run-id <runId>
           verify-gateways --cid <cid> --size <bytes> --sha256 <hex>
 
         Ingest defaults: pilot 25,000 accounts from tempdata/real_acct.txt.

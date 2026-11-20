@@ -81,6 +81,21 @@ public sealed class DuckDbQueryRepository(DuckDbConnectionFactory connectionFact
         return runs;
     }
 
+    /// <summary>Marks orphan <c>running</c> rows (e.g. interrupted CLI) as <c>interrupted</c>.</summary>
+    public int MarkStaleRunningRuns()
+    {
+        using var connection = (DuckDBConnection)connectionFactory.CreateOpenConnection();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText =
+            """
+            UPDATE pipeline_runs
+            SET status = 'interrupted',
+                completed_at = COALESCE(completed_at, started_at)
+            WHERE lower(status) = 'running'
+            """;
+        return cmd.ExecuteNonQuery();
+    }
+
     public PipelineRunManifest? GetRunManifest(string runId)
     {
         using var connection = (DuckDBConnection)connectionFactory.CreateOpenConnection();

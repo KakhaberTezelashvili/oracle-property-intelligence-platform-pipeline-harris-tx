@@ -10,16 +10,17 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddOracleHarrisPublish(this IServiceCollection services, Action<FilebaseOptions>? configure = null)
     {
-        if (configure is not null)
+        services.Configure<FilebaseOptions>(o =>
         {
-            services.Configure(configure);
-        }
-        else
-        {
-            services.AddOptions<FilebaseOptions>();
-        }
+            FilebaseEnvironment.Apply(o);
+            configure?.Invoke(o);
+        });
 
-        services.AddHttpClient<DualGatewayVerifier>();
+        services.AddHttpClient<DualGatewayVerifier>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(3);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Oracle.Harris/1.0 (ipfs-gateway-verify)");
+        });
         services.AddSingleton<QueryTableParquetExporter>();
         services.AddSingleton<FilebasePublisher>();
         services.AddSingleton<PublishOrchestrator>();

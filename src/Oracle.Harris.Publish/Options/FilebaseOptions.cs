@@ -6,7 +6,7 @@ public sealed class FilebaseOptions
 
     public string Endpoint { get; set; } = "https://s3.filebase.io";
 
-    public string Bucket { get; set; } = "elephant-oracle-query-table-harris-tx";
+    public string Bucket { get; set; } = "demo-storage-ipfs";
 
     public string AccessKey { get; set; } = string.Empty;
 
